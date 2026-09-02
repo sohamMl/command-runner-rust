@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Command Runner</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+  <link rel="stylesheet" href="/node_modules/@xterm/xterm/css/xterm.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header Bar -->
+    <header class="header-bar">
+      <div class="header-start">
+        <button id="btn-add" class="btn btn-icon" title="New Command (Ctrl+N)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <button id="btn-sudo" class="btn btn-icon" title="Global Sudo Mode">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        </button>
+      </div>
+
+      <div class="header-center">
+        <div class="search-box">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="search-input" placeholder="Search commands… (Ctrl+F)" autocomplete="off" />
+          <button id="search-clear" class="btn-clear hidden" title="Clear">&times;</button>
+        </div>
+      </div>
+
+      <div class="header-end">
+        <button id="btn-refresh" class="btn btn-icon" title="Refresh">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        </button>
+        <div class="dropdown">
+          <button id="btn-menu" class="btn btn-icon" title="Menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <div id="menu-dropdown" class="dropdown-menu hidden">
+            <a href="#" id="menu-import">Import Commands…</a>
+            <a href="#" id="menu-export">Export Commands…</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" id="menu-about">About Command Runner</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="commands-container" class="commands-container"></main>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state hidden">
+      <div class="empty-icon">🚀</div>
+      <h2>No Commands Yet</h2>
+      <p>Click the <strong>+</strong> button above to add your first command.</p>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Command Dialog Modal -->
+    <div id="modal-command" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="modal-command-title">New Command</h3>
+          <button id="modal-command-close" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="cmd-name">Name <span class="req">*</span></label>
+            <input type="text" id="cmd-name" placeholder="e.g. Update System" required />
+          </div>
+
+          <div class="form-group">
+            <label for="cmd-command">Command <span class="req">*</span></label>
+            <textarea id="cmd-command" rows="3" placeholder="e.g. sudo dnf update -y" class="monospace" required></textarea>
+            <small class="help-text">Supports placeholders like <code>{{target}}</code> or <code>{{branch}}</code></small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="cmd-category">Category</label>
+              <input type="text" id="cmd-category" placeholder="General" value="General" />
+            </div>
+            <div class="form-group emoji-picker-group">
+              <label>Icon</label>
+              <button type="button" id="cmd-emoji-btn" class="emoji-select-btn">🚀</button>
+              <div id="emoji-popover" class="emoji-popover hidden">
+                <input type="text" id="emoji-search" placeholder="Search emoji…" />
+                <div id="emoji-grid" class="emoji-grid"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cmd-description">Description (optional)</label>
+            <input type="text" id="cmd-description" placeholder="Brief description of what this does" />
+          </div>
+
+          <div class="accordion-section">
+            <button type="button" id="advanced-toggle" class="accordion-header">
+              <span>Advanced Settings</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div id="advanced-content" class="accordion-body hidden">
+              <div class="form-group">
+                <label for="cmd-workdir">Working Directory</label>
+                <div class="input-action-row">
+                  <input type="text" id="cmd-workdir" placeholder="Leave empty for home directory" />
+                  <button type="button" id="btn-browse-dir" class="btn btn-secondary">Browse</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="cmd-env">Environment Variables</label>
+                <input type="text" id="cmd-env" placeholder="KEY1=VAL1 KEY2=VAL2" class="monospace" />
+              </div>
+
+              <div class="form-check">
+                <label class="switch-label">
+                  <input type="checkbox" id="cmd-sudo" />
+                  <span class="switch-slider"></span>
+                  <span class="switch-text">Run as Sudo / Elevated (pkexec)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-cancel-command" class="btn btn-secondary">Cancel</button>
+          <button id="btn-save-command" class="btn btn-primary">Save Command</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Variable Dialog Modal -->
+    <div id="modal-variable" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Fill in Variables</h3>
+          <button id="modal-var-close" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="template-preview">
+            <label>Template:</label>
+            <pre id="var-template-code" class="monospace"></pre>
+          </div>
+          <div id="var-fields-container" class="form-group"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-cancel-var" class="btn btn-secondary">Cancel</button>
+          <button id="btn-run-var" class="btn btn-primary">Run Command</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="modal-confirm" class="modal-backdrop hidden">
+      <div class="modal-card modal-card-sm">
+        <div class="modal-header">
+          <h3 id="confirm-title">Delete Command?</h3>
+          <button id="modal-confirm-close" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-message">Are you sure you want to delete this command? This cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-confirm-ok" class="btn btn-danger">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
