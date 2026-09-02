@@ -6,6 +6,14 @@ Built with **Tauri 2.0**, **Rust**, and **xterm.js** to deliver zero C-library d
 
 ---
 
+## 📸 Screenshots
+
+| Main Dashboard & Categories | Embedded Terminal Stream | New Command & Parameters |
+|:---:|:---:|:---:|
+| ![Main Dashboard](docs/screenshots/main-dashboard.png) | ![Terminal Stream](docs/screenshots/terminal-stream.png) | ![New Command Modal](docs/screenshots/add-command-modal.png) |
+
+---
+
 ## ✨ Features
 
 - 🖥️ **Embedded xterm.js Terminal**: Full ANSI color support, real-time resizing, copy/paste, link detection, and terminal output export.
