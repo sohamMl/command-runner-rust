@@ -98,12 +98,51 @@
             <input type="text" id="cmd-description" placeholder="Brief description of what this does" />
           </div>
 
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="cmd-interval">Auto-Refresh / Monitor Mode</label>
+              <select id="cmd-interval" class="form-select">
+                <option value="0">Disabled (Run once)</option>
+                <option value="1">Every 1 second</option>
+                <option value="2">Every 2 seconds</option>
+                <option value="3">Every 3 seconds</option>
+                <option value="5">Every 5 seconds</option>
+                <option value="10">Every 10 seconds</option>
+                <option value="30">Every 30 seconds</option>
+                <option value="60">Every 1 minute</option>
+                <option value="custom">Custom seconds...</option>
+              </select>
+            </div>
+            <div id="custom-interval-group" class="form-group hidden" style="width: 120px;">
+              <label for="cmd-custom-interval">Seconds</label>
+              <input type="number" id="cmd-custom-interval" min="1" max="86400" placeholder="e.g. 15" />
+            </div>
+          </div>
+          <small id="interval-hint" class="help-text hidden">💡 <strong>Tip:</strong> For monitoring tools (like <code>sensors</code> or <code>df -h</code>), enter the base command without <code>watch</code> for complete, scrollable output.</small>
+
           <div class="accordion-section">
             <button type="button" id="advanced-toggle" class="accordion-header">
               <span>Advanced Settings</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
             <div id="advanced-content" class="accordion-body hidden">
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="cmd-term-height">Expanded Terminal Height</label>
+                  <select id="cmd-term-height" class="form-select">
+                    <option value="480">Standard</option>
+                    <option value="600">Tall</option>
+                    <option value="750">Extra Tall</option>
+                    <option value="320">Compact</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                </div>
+                <div id="custom-term-height-group" class="form-group hidden" style="width: 120px;">
+                  <label for="cmd-custom-term-height">Height (px)</label>
+                  <input type="number" id="cmd-custom-term-height" min="150" max="2500" placeholder="e.g. 650" />
+                </div>
+              </div>
+
               <div class="form-group">
                 <label for="cmd-workdir">Working Directory</label>
                 <div class="input-action-row">

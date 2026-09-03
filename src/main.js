@@ -8,6 +8,7 @@ class CommandRunnerApp {
     this.commands = [];
     this.terminals = new Map();
     this.runningStates = new Map();
+    this.monitorTimers = new Map();
     this.globalSudo = false;
     this.editingId = null;
 
@@ -35,6 +36,13 @@ class CommandRunnerApp {
     this.cmdCategory = document.getElementById('cmd-category');
     this.cmdEmojiBtn = document.getElementById('cmd-emoji-btn');
     this.cmdDesc = document.getElementById('cmd-description');
+    this.cmdInterval = document.getElementById('cmd-interval');
+    this.customIntervalGroup = document.getElementById('custom-interval-group');
+    this.cmdCustomInterval = document.getElementById('cmd-custom-interval');
+    this.intervalHint = document.getElementById('interval-hint');
+    this.cmdTermHeight = document.getElementById('cmd-term-height');
+    this.customTermHeightGroup = document.getElementById('custom-term-height-group');
+    this.cmdCustomTermHeight = document.getElementById('cmd-custom-term-height');
     this.cmdWorkdir = document.getElementById('cmd-workdir');
     this.cmdEnv = document.getElementById('cmd-env');
     this.cmdSudo = document.getElementById('cmd-sudo');
@@ -121,6 +129,20 @@ class CommandRunnerApp {
 
     this.btnSaveCommand.addEventListener('click', () => this.saveCommandForm());
 
+    this.cmdInterval.addEventListener('change', () => {
+      const isCustom = this.cmdInterval.value === 'custom';
+      this.customIntervalGroup.classList.toggle('hidden', !isCustom);
+      if (isCustom) this.cmdCustomInterval.focus();
+      const isInterval = this.cmdInterval.value !== '0';
+      this.intervalHint.classList.toggle('hidden', !isInterval);
+    });
+
+    this.cmdTermHeight.addEventListener('change', () => {
+      const isCustom = this.cmdTermHeight.value === 'custom';
+      this.customTermHeightGroup.classList.toggle('hidden', !isCustom);
+      if (isCustom) this.cmdCustomTermHeight.focus();
+    });
+
     this.advancedToggle.addEventListener('click', () => {
       this.advancedContent.classList.toggle('hidden');
     });
@@ -141,7 +163,9 @@ class CommandRunnerApp {
   }
 
   render() {
-    // Cleanup previous terminals to prevent leaks/dangling observers
+    // Cleanup active timers and previous terminals to prevent leaks/dangling observers
+    this.monitorTimers.forEach(t => clearTimeout(t));
+    this.monitorTimers.clear();
     this.terminals.forEach(tm => tm.destroy());
     this.terminals.clear();
 
@@ -198,6 +222,9 @@ class CommandRunnerApp {
 
     const isRunning = this.runningStates.get(cmd.id) || false;
     const badgeClass = cmd.last_exit_code === 0 ? 'badge-success' : (cmd.last_exit_code !== null && cmd.last_exit_code !== undefined ? 'badge-error' : '');
+    const intervalBadge = (cmd.interval_seconds && cmd.interval_seconds > 0)
+      ? `<span class="tag-interval" title="Auto-refreshes every ${cmd.interval_seconds}s">🔄 ${cmd.interval_seconds}s</span>`
+      : '';
 
     card.innerHTML = `
       <div class="command-main-row">
@@ -215,6 +242,7 @@ class CommandRunnerApp {
           <div class="command-title-row">
             <span class="command-name">${cmd.name}</span>
             ${cmd.requires_sudo ? '<span class="tag-sudo">sudo</span>' : ''}
+            ${intervalBadge}
           </div>
           ${cmd.description ? `<span class="command-desc">${cmd.description}</span>` : ''}
           <div><code class="command-code">$ ${cmd.command}</code></div>
@@ -222,7 +250,7 @@ class CommandRunnerApp {
         </div>
 
         <div class="command-actions">
-          <button class="btn btn-primary btn-run">${isRunning ? 'Stop' : 'Run'}</button>
+          <button class="btn btn-primary btn-run">${isRunning ? 'Stop' : (cmd.interval_seconds > 0 ? 'Monitor' : 'Run')}</button>
           <button class="btn btn-icon btn-save-output" title="Save Output">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
           </button>
@@ -288,7 +316,13 @@ class CommandRunnerApp {
       }
       // Pause observer during class toggle to prevent resize feedback loop
       if (tm.resizeObserver) tm.resizeObserver.disconnect();
-      termWrapper.classList.toggle('expanded');
+      const isNowExpanded = termWrapper.classList.toggle('expanded');
+      if (isNowExpanded) {
+        const height = cmd.terminal_height || 480;
+        termWrapper.style.height = `${height}px`;
+      } else {
+        termWrapper.style.height = '';
+      }
       // Re-observe and fit after layout settles
       setTimeout(() => {
         if (tm.resizeObserver && tm.container) {
@@ -347,16 +381,19 @@ class CommandRunnerApp {
   }
 
   async handleRunStop(cmd, card) {
-    const isRunning = this.runningStates.get(cmd.id) || false;
+    const isRunning = this.runningStates.get(cmd.id) || this.monitorTimers.has(cmd.id);
     const btnRun = card.querySelector('.btn-run');
     const spinner = card.querySelector('.spinner');
-    const termWrapper = card.querySelector('.terminal-wrapper');
-    const termContainer = card.querySelector('.terminal-container');
+    const intervalSecs = cmd.interval_seconds || 0;
 
     if (isRunning) {
-      await invoke('stop_command', { id: cmd.id });
+      if (this.monitorTimers.has(cmd.id)) {
+        clearTimeout(this.monitorTimers.get(cmd.id));
+        this.monitorTimers.delete(cmd.id);
+      }
       this.runningStates.set(cmd.id, false);
-      btnRun.textContent = 'Run';
+      await invoke('stop_command', { id: cmd.id }).catch(() => {});
+      btnRun.textContent = intervalSecs > 0 ? 'Monitor' : 'Run';
       btnRun.classList.remove('btn-danger');
       btnRun.classList.add('btn-primary');
       spinner.classList.add('hidden');
@@ -390,7 +427,7 @@ class CommandRunnerApp {
     tm.clear();
     setTimeout(() => tm.fit(), 50);
 
-    const dims = tm.getDimensions();
+    const intervalSecs = cmd.interval_seconds || 0;
 
     this.runningStates.set(cmd.id, true);
     btnRun.textContent = 'Stop';
@@ -398,38 +435,63 @@ class CommandRunnerApp {
     btnRun.classList.add('btn-danger');
     spinner.classList.remove('hidden');
 
-    await tm.attachListeners(async (exitCode) => {
-      this.runningStates.set(cmd.id, false);
-      btnRun.textContent = 'Run';
-      btnRun.classList.remove('btn-danger');
-      btnRun.classList.add('btn-primary');
-      spinner.classList.add('hidden');
+    const runIteration = async () => {
+      if (!this.runningStates.get(cmd.id)) return;
 
-      await invoke('record_run', { id: cmd.id, exitCode }).catch(() => {});
-      cmd.last_exit_code = exitCode;
-      cmd.last_run = new Date().toISOString();
-      this.updateCardStatus(card, cmd);
-    });
+      const dims = tm.getDimensions();
+      // If periodic monitor mode, clear previous output frame before redrawing cleanly
+      if (intervalSecs > 0) {
+        tm.clear(true);
+      }
 
-    try {
-      await invoke('run_command', {
-        id: cmd.id,
-        command: commandString,
-        workingDir: cmd.working_dir || null,
-        envVars: cmd.env_vars || null,
-        requiresSudo: cmd.requires_sudo || false,
-        globalSudo: this.globalSudo,
-        cols: dims.cols,
-        rows: dims.rows,
-      });
-    } catch (err) {
-      this.showToast(`Error running command: ${err}`);
-      this.runningStates.set(cmd.id, false);
-      btnRun.textContent = 'Run';
-      btnRun.classList.remove('btn-danger');
-      btnRun.classList.add('btn-primary');
-      spinner.classList.add('hidden');
-    }
+      await tm.attachListeners(async (exitCode) => {
+        await invoke('record_run', { id: cmd.id, exitCode }).catch(() => {});
+        cmd.last_exit_code = exitCode;
+        cmd.last_run = new Date().toISOString();
+        this.updateCardStatus(card, cmd);
+
+        // If periodic monitoring is active and still running, schedule next iteration
+        if (intervalSecs > 0 && this.runningStates.get(cmd.id)) {
+          const timerId = setTimeout(() => {
+            this.monitorTimers.delete(cmd.id);
+            runIteration();
+          }, intervalSecs * 1000);
+          this.monitorTimers.set(cmd.id, timerId);
+        } else {
+          this.runningStates.set(cmd.id, false);
+          btnRun.textContent = intervalSecs > 0 ? 'Monitor' : 'Run';
+          btnRun.classList.remove('btn-danger');
+          btnRun.classList.add('btn-primary');
+          spinner.classList.add('hidden');
+        }
+      }, intervalSecs > 0);
+
+      try {
+        await invoke('run_command', {
+          id: cmd.id,
+          command: commandString,
+          workingDir: cmd.working_dir || null,
+          envVars: cmd.env_vars || null,
+          requiresSudo: cmd.requires_sudo || false,
+          globalSudo: this.globalSudo,
+          cols: dims.cols,
+          rows: dims.rows,
+        });
+      } catch (err) {
+        this.showToast(`Error running command: ${err}`);
+        this.runningStates.set(cmd.id, false);
+        if (this.monitorTimers.has(cmd.id)) {
+          clearTimeout(this.monitorTimers.get(cmd.id));
+          this.monitorTimers.delete(cmd.id);
+        }
+        btnRun.textContent = intervalSecs > 0 ? 'Monitor' : 'Run';
+        btnRun.classList.remove('btn-danger');
+        btnRun.classList.add('btn-primary');
+        spinner.classList.add('hidden');
+      }
+    };
+
+    runIteration();
   }
 
   openAddModal() {
@@ -441,6 +503,13 @@ class CommandRunnerApp {
     this.cmdEmojiBtn.textContent = '🚀';
     this.selectedEmoji = '🚀';
     this.cmdDesc.value = '';
+    this.cmdInterval.value = '0';
+    this.customIntervalGroup.classList.add('hidden');
+    this.cmdCustomInterval.value = '';
+    this.intervalHint.classList.add('hidden');
+    this.cmdTermHeight.value = '480';
+    this.customTermHeightGroup.classList.add('hidden');
+    this.cmdCustomTermHeight.value = '';
     this.cmdWorkdir.value = '';
     this.cmdEnv.value = '';
     this.cmdSudo.checked = false;
@@ -458,6 +527,30 @@ class CommandRunnerApp {
     this.cmdEmojiBtn.textContent = cmd.emoji || '🚀';
     this.selectedEmoji = cmd.emoji || '🚀';
     this.cmdDesc.value = cmd.description || '';
+
+    const secs = cmd.interval_seconds || 0;
+    if (['0', '1', '2', '3', '5', '10', '30', '60'].includes(String(secs))) {
+      this.cmdInterval.value = String(secs);
+      this.customIntervalGroup.classList.add('hidden');
+      this.cmdCustomInterval.value = '';
+    } else {
+      this.cmdInterval.value = 'custom';
+      this.customIntervalGroup.classList.remove('hidden');
+      this.cmdCustomInterval.value = secs;
+    }
+    this.intervalHint.classList.toggle('hidden', secs === 0);
+
+    const termH = cmd.terminal_height || 480;
+    if (['320', '480', '600', '750'].includes(String(termH))) {
+      this.cmdTermHeight.value = String(termH);
+      this.customTermHeightGroup.classList.add('hidden');
+      this.cmdCustomTermHeight.value = '';
+    } else {
+      this.cmdTermHeight.value = 'custom';
+      this.customTermHeightGroup.classList.remove('hidden');
+      this.cmdCustomTermHeight.value = termH;
+    }
+
     this.cmdWorkdir.value = cmd.working_dir || '';
     this.cmdEnv.value = cmd.env_vars || '';
     this.cmdSudo.checked = cmd.requires_sudo || false;
@@ -471,6 +564,24 @@ class CommandRunnerApp {
       return this.showToast('Please fill in Name and Command');
     }
 
+    let intervalSecs = null;
+    if (this.cmdInterval.value === 'custom') {
+      const customVal = parseInt(this.cmdCustomInterval.value, 10);
+      if (customVal && customVal > 0) intervalSecs = customVal;
+    } else {
+      const standardVal = parseInt(this.cmdInterval.value, 10);
+      if (standardVal && standardVal > 0) intervalSecs = standardVal;
+    }
+
+    let termHeight = null;
+    if (this.cmdTermHeight.value === 'custom') {
+      const customH = parseInt(this.cmdCustomTermHeight.value, 10);
+      if (customH && customH >= 150) termHeight = customH;
+    } else {
+      const standardH = parseInt(this.cmdTermHeight.value, 10);
+      if (standardH && standardH !== 480) termHeight = standardH;
+    }
+
     const payload = {
       id: this.editingId || '',
       name,
@@ -478,6 +589,8 @@ class CommandRunnerApp {
       category: this.cmdCategory.value.trim() || 'General',
       emoji: this.selectedEmoji || '🚀',
       description: this.cmdDesc.value.trim(),
+      interval_seconds: intervalSecs,
+      terminal_height: termHeight,
       working_dir: this.cmdWorkdir.value.trim(),
       env_vars: this.cmdEnv.value.trim(),
       requires_sudo: this.cmdSudo.checked,

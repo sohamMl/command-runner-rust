@@ -13,6 +13,7 @@ graph TD
     subgraph Frontend ["Frontend (Webview / Vanilla JS & xterm.js)"]
         UI[UI Components & Modals<br/>main.js]
         TERM[Embedded Terminal<br/>terminal.js / @xterm/xterm]
+        MONITOR[Periodic Monitor Engine<br/>Timer Poller & Redraw Controller]
         STATE[Local UI State & Event Handlers]
     end
 
@@ -35,6 +36,7 @@ graph TD
     end
 
     UI -->|IPC Invoke| INVOKE
+    MONITOR -->|Scheduled Iteration| INVOKE
     INVOKE --> CONFIG
     INVOKE --> PTY
     CONFIG -->|Atomic Save / Load| FS
@@ -52,12 +54,15 @@ graph TD
 
 ```
 command-runner-rust/
+├── docs/                        # Project documentation and screenshots
+│   ├── ARCHITECTURE.md          # Complete technical design & IPC documentation
+│   └── screenshots/             # UI screenshots for README and documentation
 ├── index.html                   # Core application layout & dialog containers
 ├── package.json                 # Frontend dependencies (@xterm, @tauri-apps/api, vite)
 ├── vite.config.js               # Optimized Vite bundler configuration for Tauri
 ├── dist/                        # Compiled production frontend assets
 ├── src/                         # Frontend application source
-│   ├── main.js                  # State orchestrator, IPC bridges, DOM event handlers
+│   ├── main.js                  # State orchestrator, IPC bridges, monitor loop engine
 │   ├── terminal.js              # xterm.js lifecycle, FitAddon, PTY stream receiver
 │   ├── dialogs.js               # Category emoji picker and dialog controllers
 │   └── styles.css               # GNOME/Libadwaita dark theme design system
@@ -79,6 +84,24 @@ command-runner-rust/
 ## 3. Backend Subsystems
 
 ### A. Configuration Manager (`src-tauri/src/config.rs`)
+- **Data Model (`CommandItem`)**:
+  ```rust
+  pub struct CommandItem {
+      pub id: String,
+      pub name: String,
+      pub command: String,
+      pub description: String,
+      pub emoji: String,
+      pub category: String,
+      pub requires_sudo: bool,
+      pub working_dir: String,
+      pub env_vars: String,
+      pub last_run: String,
+      pub last_exit_code: Option<i32>,
+      pub interval_seconds: Option<u32>,
+      pub terminal_height: Option<u32>,
+  }
+  ```
 - **State Storage**: Encapsulated in `Arc<parking_lot::RwLock<Vec<CommandItem>>>` injected into Tauri state.
 - **XDG Compliance**: Automatically computes storage paths using `dirs::config_dir()`, defaulting to `$XDG_CONFIG_HOME/command-runner/config.json` (`~/.config/command-runner/config.json`).
 - **Atomic Writes**: Config saves are written to `config.json.tmp` and then atomically renamed via `std::fs::rename`. This guarantees that unexpected crashes or power failures never corrupt the config file.
@@ -118,7 +141,7 @@ command-runner-rust/
 ### C. Native System Tray (`src-tauri/src/tray.rs`)
 - Implemented using Tauri 2.0 `TrayIconBuilder`.
 - Supports desktop environments on both **Wayland** and **X11** via `libappindicator`/`StatusNotifierItem`.
-- Intercepts window close requests (`tauri::WindowEvent::CloseRequested` in `lib.rs`) to hide the window to the tray rather than terminating the background processes.
+- Intercepts window close requests (`tauri::WindowEvent::CloseRequested` in `lib.rs`) to hide the window to the tray rather than terminating background processes.
 
 ---
 
@@ -126,13 +149,16 @@ command-runner-rust/
 
 ### A. Terminal Emulation (`src/terminal.js`)
 - Uses **`@xterm/xterm`** along with `@xterm/addon-fit` and `@xterm/addon-web-links`.
-- Auto-resizes using a DOM `ResizeObserver`, calculating `cols` and `rows` and dispatching `resize_pty` to the Rust backend to adjust the PTY geometry.
+- Auto-resizes using a DOM `ResizeObserver`, calculating `cols` and `rows` and dispatching `resize_pty` to the Rust backend to adjust PTY geometry.
+- **Static Monitor Redraws**: In periodic monitor mode, suppresses exit banners and invokes `scrollToTop()` so that outputs like `sensors` remain completely stationary on screen.
 - Captures active buffer contents and supports exporting output directly to disk via `save_file`.
 
 ### B. State Management & Dynamic UI (`src/main.js`)
 - **Card Categorization**: Dynamically computes categories and renders collapsible GNOME-styled accordions with emoji badges.
 - **Search Engine**: Real-time filtering across command labels, shell commands, categories, and descriptions.
 - **Template Variables**: Automatically scans command strings for `{{variable_name}}` patterns using regular expressions and renders dynamic input forms before triggering execution.
+- **Periodic Monitor Mode**: Manages recurring execution timers (`monitorTimers`) per command. Automatically loops one-shot commands (`sensors`, `df -h`) at specified intervals ($1s$, $2s$, $5s$, etc.) without curses row truncation.
+- **Configurable Terminal Height**: Sets expanded card height based on user configuration (`terminal_height`: Standard 480px, Tall 600px, Extra Tall 750px, Compact 320px, or custom px).
 - **Drag & Drop**: Native HTML5 Drag and Drop API with immediate state reordering and synchronization to backend storage via `reorder_commands`.
 
 ---

@@ -93,7 +93,7 @@ export class TerminalManager {
     } catch (_) {}
   }
 
-  async attachListeners(onExitCallback) {
+  async attachListeners(onExitCallback, isMonitor = false) {
     if (this.unlistenOutput) {
       this.unlistenOutput();
       this.unlistenOutput = null;
@@ -105,7 +105,11 @@ export class TerminalManager {
 
     this.unlistenOutput = await listen(`pty-output-${this.commandId}`, (event) => {
       if (event.payload && event.payload.data) {
-        this.term.write(event.payload.data);
+        this.term.write(event.payload.data, () => {
+          if (isMonitor && this.term) {
+            this.term.scrollToTop();
+          }
+        });
         if (this.outputBuffer.length < 500000) {
           this.outputBuffer += event.payload.data;
         } else {
@@ -116,18 +120,31 @@ export class TerminalManager {
 
     this.unlistenExit = await listen(`pty-exit-${this.commandId}`, (event) => {
       const exitCode = event.payload ? event.payload.exit_code : 0;
-      this.term.write(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`);
+      if (!isMonitor) {
+        this.term.write(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`);
+      } else {
+        this.term.scrollToTop();
+      }
       if (onExitCallback) {
         onExitCallback(exitCode);
       }
     });
   }
 
-  clear() {
+  clear(scrollToTop = false) {
     if (this.term) {
       this.term.clear();
       this.term.reset();
       this.outputBuffer = '';
+      if (scrollToTop) {
+        this.term.scrollToTop();
+      }
+    }
+  }
+
+  scrollToTop() {
+    if (this.term) {
+      this.term.scrollToTop();
     }
   }
 

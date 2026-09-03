@@ -397,6 +397,18 @@ body {
   font-weight: 700;
 }
 
+.tag-interval {
+  font-size: 11px;
+  background-color: rgba(53, 132, 228, 0.18);
+  color: #78aeed;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .command-desc {
   font-size: 12px;
   color: var(--text-secondary);
@@ -470,9 +482,9 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal);
-  width: 500px;
-  max-width: 90vw;
-  max-height: 85vh;
+  width: 520px;
+  max-width: 92vw;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -535,7 +547,7 @@ body {
   color: var(--text-secondary);
 }
 
-.form-group input, .form-group textarea {
+.form-group input, .form-group textarea, .form-group select {
   padding: 9px 12px;
   background-color: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -546,7 +558,30 @@ body {
   font-family: inherit;
 }
 
-.form-group input:focus, .form-group textarea:focus {
+.form-group select, select.form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 9px 36px 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a9996' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+}
+
+.form-group select option {
+  background-color: #252525;
+  color: #ffffff;
+  padding: 8px 12px;
+}
+
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
   border-color: var(--border-focus);
 }
 
