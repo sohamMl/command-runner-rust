@@ -21,13 +21,15 @@ Built with **Tauri 2.0**, **Rust**, and **xterm.js** to deliver zero C-library d
 
 - 🖥️ **Embedded xterm.js Terminal**: Full ANSI color support, real-time resizing, copy/paste, link detection, and terminal output export.
 - ⚡ **True Pseudo-Terminal (PTY) Engine**: Built on Rust's `portable-pty` for direct Linux pseudo-terminal allocation (`/dev/pts`) and bidirectional streaming.
-- 🧩 **Interactive Template Variables**: Define commands with `{{variable}}` placeholders (e.g. `ping {{host}}` or `git checkout {{branch}}`); Command Runner will prompt with a dedicated input form before running.
+- 🧩 **Interactive Template Variables**: Define commands with `{{variable}}` placeholders (e.g. `ping {{host}}` or `tar -czvf {{archive}}.tar.gz {{folder}}`); Command Runner will prompt with a dedicated input form before running.
+- 🔄 **Auto-Refresh & Monitor Mode**: Run repetitive monitoring tasks (`sensors`, `docker ps`, `df -h`) on an automated polling timer (e.g. every 1s, 2s, 5s) with clean, untruncated output and full scrollback support.
+- 📐 **Configurable Terminal Heights**: Expand terminal cards on demand with customizable height presets (Standard, Tall, Extra Tall, Compact, or custom pixels) so long command outputs fit completely on screen.
 - 🔒 **Safe Privilege Elevation**: Per-command elevation or global sudo toggle supporting both `pkexec` (graphical authentication) and `sudo`.
 - 🗂️ **Categories & Accordions**: Organize commands into collapsible category accordions with customizable emoji icons.
 - 🔍 **Instant Search & Filter**: Real-time fuzzy filtering across command names, shell scripts, and descriptions with keyboard shortcuts (`Ctrl+F`).
 - 🔄 **Drag-and-Drop Reordering**: Rearrange commands within and across categories with persistent ordering.
 - 📥 **Config Import & Export**: Easily backup or share your command library via JSON with UUID-based duplicate merging.
--  tray **Native System Tray Integration**: Minimizes cleanly to the desktop status area (Wayland & X11) with quick toggle menus.
+- 📌 **Native System Tray Integration**: Minimizes cleanly to the desktop status area (Wayland & X11) with quick toggle menus.
 - 🛡️ **Secure by Design**: Atomic file saves, strict `0600` POSIX file permissions, and no continuous background sudo polling loops.
 
 ---
@@ -39,7 +41,7 @@ Command Runner decouples the user interface from low-level process execution via
 - **Frontend**: Vanilla JavaScript + `@xterm/xterm` + CSS3 design system themed with Libadwaita / GNOME dark tokens.
 - **Backend (Rust)**: Tokio async runtime, `portable-pty` process subsystem, `parking_lot` RwLock state, and native tray bindings.
 
-For complete architectural diagrams, threading models, and IPC API matrices, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+For complete architectural diagrams, threading models, and IPC API matrices, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 

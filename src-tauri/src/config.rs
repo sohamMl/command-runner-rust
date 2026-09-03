@@ -31,6 +31,10 @@ pub struct CommandItem {
     pub last_run: String,
     #[serde(default)]
     pub last_exit_code: Option<i32>,
+    #[serde(default)]
+    pub interval_seconds: Option<u32>,
+    #[serde(default)]
+    pub terminal_height: Option<u32>,
 }
 
 fn default_emoji() -> String {
