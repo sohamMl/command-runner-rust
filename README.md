@@ -21,6 +21,7 @@ Built with **Tauri 2.0**, **Rust**, and **xterm.js** to deliver zero C-library d
 
 - 🖥️ **Embedded xterm.js Terminal**: Full ANSI color support, real-time resizing, copy/paste, link detection, and terminal output export.
 - ⚡ **True Pseudo-Terminal (PTY) Engine**: Built on Rust's `portable-pty` for direct Linux pseudo-terminal allocation (`/dev/pts`) and bidirectional streaming.
+- 📜 **Script File Execution**: Point directly to `.sh`, `.bash`, `.zsh`, or `.py` scripts using a native file picker, with custom arguments and interpreter selection (`bash`, `sh`, `python3`, `./`).
 - 🧩 **Interactive Template Variables**: Define commands with `{{variable}}` placeholders (e.g. `ping {{host}}` or `tar -czvf {{archive}}.tar.gz {{folder}}`); Command Runner will prompt with a dedicated input form before running.
 - 🔄 **Auto-Refresh & Monitor Mode**: Run repetitive monitoring tasks (`sensors`, `docker ps`, `df -h`) on an automated polling timer (e.g. every 1s, 2s, 5s) with clean, untruncated output and full scrollback support.
 - 📐 **Configurable Terminal Heights**: Expand terminal cards on demand with customizable height presets (Standard, Tall, Extra Tall, Compact, or custom pixels) so long command outputs fit completely on screen.
