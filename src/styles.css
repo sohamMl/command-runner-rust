@@ -409,6 +409,55 @@ body {
   gap: 3px;
 }
 
+.tag-script {
+  font-size: 11px;
+  background-color: rgba(51, 209, 122, 0.18);
+  color: #57e389;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Segmented Mode Control */
+.mode-segmented-control {
+  display: flex;
+  background-color: var(--bg-primary);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  gap: 2px;
+}
+
+.segmented-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.segmented-btn:hover {
+  color: var(--text-primary);
+}
+
+.segmented-btn.active {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
 .command-desc {
   font-size: 12px;
   color: var(--text-secondary);
@@ -424,11 +473,51 @@ body {
   background-color: rgba(0, 0, 0, 0.25);
   padding: 2px 6px;
   border-radius: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   display: inline-block;
   max-width: 100%;
+}
+
+/* Template Preview in Variable Modal */
+.template-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.template-preview label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.template-preview pre, #var-template-code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #8cdcfe;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+}
+
+#var-fields-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
 }
 
 .command-meta {

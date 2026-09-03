@@ -35,6 +35,14 @@ pub struct CommandItem {
     pub interval_seconds: Option<u32>,
     #[serde(default)]
     pub terminal_height: Option<u32>,
+    #[serde(default)]
+    pub is_script: Option<bool>,
+    #[serde(default)]
+    pub script_path: Option<String>,
+    #[serde(default)]
+    pub script_args: Option<String>,
+    #[serde(default)]
+    pub interpreter: Option<String>,
 }
 
 fn default_emoji() -> String {

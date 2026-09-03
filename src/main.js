@@ -11,6 +11,7 @@ class CommandRunnerApp {
     this.monitorTimers = new Map();
     this.globalSudo = false;
     this.editingId = null;
+    this.isScriptMode = false;
 
     this.cacheDom();
     this.bindEvents();
@@ -31,8 +32,16 @@ class CommandRunnerApp {
     // Modals
     this.modalCommand = document.getElementById('modal-command');
     this.modalCommandTitle = document.getElementById('modal-command-title');
+    this.btnModeInline = document.getElementById('btn-mode-inline');
+    this.btnModeScript = document.getElementById('btn-mode-script');
     this.cmdName = document.getElementById('cmd-name');
+    this.sectionInlineCommand = document.getElementById('section-inline-command');
     this.cmdCommand = document.getElementById('cmd-command');
+    this.sectionScriptFile = document.getElementById('section-script-file');
+    this.cmdScriptPath = document.getElementById('cmd-script-path');
+    this.btnBrowseScript = document.getElementById('btn-browse-script');
+    this.cmdScriptArgs = document.getElementById('cmd-script-args');
+    this.cmdInterpreter = document.getElementById('cmd-interpreter');
     this.cmdCategory = document.getElementById('cmd-category');
     this.cmdEmojiBtn = document.getElementById('cmd-emoji-btn');
     this.cmdDesc = document.getElementById('cmd-description');
@@ -129,6 +138,21 @@ class CommandRunnerApp {
 
     this.btnSaveCommand.addEventListener('click', () => this.saveCommandForm());
 
+    this.btnModeInline.addEventListener('click', () => this.setCommandMode(false));
+    this.btnModeScript.addEventListener('click', () => this.setCommandMode(true));
+
+    this.btnBrowseScript.addEventListener('click', async () => {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        filters: [
+          { name: 'Scripts', extensions: ['sh', 'bash', 'zsh', 'py', 'pl', 'rb'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      if (selected) this.cmdScriptPath.value = selected;
+    });
+
     this.cmdInterval.addEventListener('change', () => {
       const isCustom = this.cmdInterval.value === 'custom';
       this.customIntervalGroup.classList.toggle('hidden', !isCustom);
@@ -151,6 +175,23 @@ class CommandRunnerApp {
       const selected = await open({ directory: true, multiple: false });
       if (selected) this.cmdWorkdir.value = selected;
     });
+  }
+
+  setCommandMode(isScript) {
+    this.isScriptMode = isScript;
+    this.btnModeInline.classList.toggle('active', !isScript);
+    this.btnModeScript.classList.toggle('active', isScript);
+    this.sectionInlineCommand.classList.toggle('hidden', isScript);
+    this.sectionScriptFile.classList.toggle('hidden', !isScript);
+  }
+
+  getFormattedCommand(cmd) {
+    if (cmd.is_script) {
+      const interp = cmd.interpreter === 'direct' ? '' : `${cmd.interpreter || 'bash'} `;
+      const args = cmd.script_args ? ` ${cmd.script_args}` : '';
+      return `${interp}"${cmd.script_path || ''}"${args}`.trim();
+    }
+    return cmd.command || '';
   }
 
   async loadCommands() {
@@ -225,6 +266,10 @@ class CommandRunnerApp {
     const intervalBadge = (cmd.interval_seconds && cmd.interval_seconds > 0)
       ? `<span class="tag-interval" title="Auto-refreshes every ${cmd.interval_seconds}s">🔄 ${cmd.interval_seconds}s</span>`
       : '';
+    const scriptBadge = cmd.is_script
+      ? `<span class="tag-script" title="Script File">📜 ${cmd.interpreter === 'direct' ? 'executable' : (cmd.interpreter || 'script')}</span>`
+      : '';
+    const cmdDisplay = this.getFormattedCommand(cmd);
 
     card.innerHTML = `
       <div class="command-main-row">
@@ -242,10 +287,11 @@ class CommandRunnerApp {
           <div class="command-title-row">
             <span class="command-name">${cmd.name}</span>
             ${cmd.requires_sudo ? '<span class="tag-sudo">sudo</span>' : ''}
+            ${scriptBadge}
             ${intervalBadge}
           </div>
           ${cmd.description ? `<span class="command-desc">${cmd.description}</span>` : ''}
-          <div><code class="command-code">$ ${cmd.command}</code></div>
+          <div><code class="command-code">$ ${cmdDisplay}</code></div>
           ${cmd.last_run ? `<span class="command-meta">Last run: ${new Date(cmd.last_run).toLocaleString()}</span>` : ''}
         </div>
 
@@ -400,14 +446,16 @@ class CommandRunnerApp {
       return;
     }
 
+    const commandTemplate = this.getFormattedCommand(cmd);
+
     // Check for variables {{var}}
-    const placeholders = [...new Set(Array.from(cmd.command.matchAll(/\{\{(\w+)\}\}/g), m => m[1]))];
+    const placeholders = [...new Set(Array.from(commandTemplate.matchAll(/\{\{(\w+)\}\}/g), m => m[1]))];
     if (placeholders.length > 0) {
       this.openVariableModal(cmd, placeholders, (finalCmd) => {
         this.executeCommand(cmd, card, finalCmd);
       });
     } else {
-      this.executeCommand(cmd, card, cmd.command);
+      this.executeCommand(cmd, card, commandTemplate);
     }
   }
 
@@ -497,8 +545,12 @@ class CommandRunnerApp {
   openAddModal() {
     this.editingId = null;
     this.modalCommandTitle.textContent = 'New Command';
+    this.setCommandMode(false);
     this.cmdName.value = '';
     this.cmdCommand.value = '';
+    this.cmdScriptPath.value = '';
+    this.cmdScriptArgs.value = '';
+    this.cmdInterpreter.value = 'bash';
     this.cmdCategory.value = 'General';
     this.cmdEmojiBtn.textContent = '🚀';
     this.selectedEmoji = '🚀';
@@ -521,8 +573,12 @@ class CommandRunnerApp {
   openEditModal(cmd) {
     this.editingId = cmd.id;
     this.modalCommandTitle.textContent = 'Edit Command';
+    this.setCommandMode(!!cmd.is_script);
     this.cmdName.value = cmd.name;
-    this.cmdCommand.value = cmd.command;
+    this.cmdCommand.value = cmd.command || '';
+    this.cmdScriptPath.value = cmd.script_path || '';
+    this.cmdScriptArgs.value = cmd.script_args || '';
+    this.cmdInterpreter.value = cmd.interpreter || 'bash';
     this.cmdCategory.value = cmd.category || 'General';
     this.cmdEmojiBtn.textContent = cmd.emoji || '🚀';
     this.selectedEmoji = cmd.emoji || '🚀';
@@ -559,9 +615,29 @@ class CommandRunnerApp {
 
   async saveCommandForm() {
     const name = this.cmdName.value.trim();
-    const command = this.cmdCommand.value.trim();
-    if (!name || !command) {
-      return this.showToast('Please fill in Name and Command');
+    if (!name) {
+      return this.showToast('Please fill in a Name');
+    }
+
+    let command = '';
+    let scriptPath = '';
+    let scriptArgs = '';
+    let interpreter = 'bash';
+
+    if (this.isScriptMode) {
+      scriptPath = this.cmdScriptPath.value.trim();
+      if (!scriptPath) {
+        return this.showToast('Please specify a Script Path');
+      }
+      scriptArgs = this.cmdScriptArgs.value.trim();
+      interpreter = this.cmdInterpreter.value || 'bash';
+      const interp = interpreter === 'direct' ? '' : `${interpreter} `;
+      command = `${interp}"${scriptPath}" ${scriptArgs}`.trim();
+    } else {
+      command = this.cmdCommand.value.trim();
+      if (!command) {
+        return this.showToast('Please fill in Command');
+      }
     }
 
     let intervalSecs = null;
@@ -591,6 +667,10 @@ class CommandRunnerApp {
       description: this.cmdDesc.value.trim(),
       interval_seconds: intervalSecs,
       terminal_height: termHeight,
+      is_script: this.isScriptMode,
+      script_path: this.isScriptMode ? scriptPath : null,
+      script_args: this.isScriptMode ? scriptArgs : null,
+      interpreter: this.isScriptMode ? interpreter : null,
       working_dir: this.cmdWorkdir.value.trim(),
       env_vars: this.cmdEnv.value.trim(),
       requires_sudo: this.cmdSudo.checked,
@@ -639,7 +719,8 @@ class CommandRunnerApp {
   }
 
   openVariableModal(cmd, placeholders, onConfirm) {
-    this.varTemplateCode.textContent = cmd.command;
+    const template = this.getFormattedCommand(cmd);
+    this.varTemplateCode.textContent = template;
     this.varFieldsContainer.innerHTML = '';
 
     const inputs = {};
@@ -658,7 +739,7 @@ class CommandRunnerApp {
     if (placeholders.length > 0) inputs[placeholders[0]].focus();
 
     this.btnRunVar.onclick = () => {
-      let finalCmd = cmd.command;
+      let finalCmd = template;
       for (const ph of placeholders) {
         const val = inputs[ph].value;
         finalCmd = finalCmd.replaceAll(`{{${ph}}}`, val);

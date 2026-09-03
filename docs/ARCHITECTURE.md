@@ -100,6 +100,10 @@ command-runner-rust/
       pub last_exit_code: Option<i32>,
       pub interval_seconds: Option<u32>,
       pub terminal_height: Option<u32>,
+      pub is_script: Option<bool>,
+      pub script_path: Option<String>,
+      pub script_args: Option<String>,
+      pub interpreter: Option<String>,
   }
   ```
 - **State Storage**: Encapsulated in `Arc<parking_lot::RwLock<Vec<CommandItem>>>` injected into Tauri state.
