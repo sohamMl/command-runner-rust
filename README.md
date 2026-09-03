@@ -4,6 +4,9 @@ A lightweight, high-performance desktop application for running, managing, and o
 
 Built with **Tauri 2.0**, **Rust**, and **xterm.js** to deliver zero C-library dependency friction, fast startup times, and minimal memory usage on any Linux distribution (Fedora, Ubuntu, Arch, Debian, openSUSE, etc.) and desktop environment (GNOME, KDE Plasma, XFCE, Sway, Hyprland).
 
+> [!NOTE]
+> **Disclaimer**: This is a vibe-coded project born out of a simple need—never having to memorize an annoying number of terminal commands in Linux just to get things done.
+
 ---
 
 ## 📸 Screenshots
